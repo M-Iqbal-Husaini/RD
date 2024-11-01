@@ -1,0 +1,38 @@
+name: Run ngrok with Chrome Extension
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  ngrok-chrome-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Chrome
+        run: |
+          sudo apt update
+          sudo apt install -y google-chrome-stable
+
+      - name: Set up ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install -y ngrok
+
+      - name: Authenticate ngrok
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
+
+      - name: Run ngrok Tunnel
+        run: |
+          nohup ngrok http 8080 &
+          sleep 5  # Tunggu ngrok untuk menginisialisasi
+
+      - name: Print ngrok URL
+        run: curl -s http://localhost:4040/api/tunnels | jq -r .tunnels[0].public_url
